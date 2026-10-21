@@ -11,7 +11,7 @@
 		<div class="col">
 			<div class="card card-primary">
 				<div class="card-header">
-					<h3 class="card-title">INPUT FOTO KEGIATAN</h3>
+					<h3 class="card-title">UPLOAD FOTO KEGIATAN</h3>
 				</div>
 				<div class="card-body">
 					<nav aria-label="breadcrumb"></nav>
@@ -20,8 +20,7 @@
 						<nav aria-label="breadcrumb">
 							<ol class="breadcrumb">
 								<li class="breadcrumb-item"><a href="<?php echo base_url('dashboard1/tampil_galery'); ?>">Home</a></li>
-								<li class="breadcrumb-item active" aria-current="page">Input Gallery</li>
-								<li class="breadcrumb-item active" aria-current="page">Foto Kegiatan</a></li>
+								<li class="breadcrumb-item active" aria-current="page">Upload Gallery</li>
 							</ol>
 							<?php foreach ($galery as $u) { ?>
 								<?php echo form_open_multipart('dashboard1/aksi_tambah_foto'); ?>
@@ -37,8 +36,10 @@
 									<input type="file" class="form-control" id="galery" name="galery" size="20">
 
 								</div>
-								<div class="container pt-2">
-									<button type="submit" class="btn btn-primary" data-somestringvalue-text="Loading Finished" autocomplete="off">Simpan</button>
+								<div class="container pt-3">
+
+									<button type="submit" class="btn btn-outline-primary" id="btnSimpan><i class=" fas fa-upload"></i> Upload</button>
+									<a class="btn btn-outline-danger" href="<?php echo base_url('dashboard1/tampil_galery'); ?>">Batal</a>
 								</div>
 					</div><?php } ?>
 				</div>

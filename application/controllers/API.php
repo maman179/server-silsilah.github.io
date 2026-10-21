@@ -1,7 +1,7 @@
 <?php
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class Api extends CI_Controller
+class API extends CI_Controller
 {
 	public function __construct()
 	{
@@ -41,6 +41,27 @@ class Api extends CI_Controller
 		}
 
 		return true;
+	}
+
+	private function cors()
+	{
+		$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+		$allowed_origins = [
+			'http://localhost:5173',
+			'http://127.0.0.1:5173',
+		];
+
+		if (in_array($origin, $allowed_origins)) {
+			$this->output
+				->set_header("Access-Control-Allow-Origin: {$origin}")
+				->set_header("Access-Control-Allow-Credentials: true");
+		}
+
+		$this->output
+			->set_header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS')
+			->set_header('Access-Control-Allow-Headers: Content-Type, X-API-KEY, Authorization')
+			->set_header('Access-Control-Max-Age: 86400');
 	}
 
 	public function dashboard()
@@ -233,9 +254,9 @@ class Api extends CI_Controller
 	public function login()
 	{
 		// Cek API Key
-		// if (!$this->cek_api_key()) {
-		// 	return;
-		// }
+		if (!$this->cek_api_key()) {
+			return;
+		}
 
 		$username = $this->input->post('username', TRUE);
 		$password = $this->input->post('password', TRUE);
@@ -966,15 +987,12 @@ class Api extends CI_Controller
 				]));
 		}
 
-
-
 		// AMBIL ANAK
 		$anak = $this->db
 			->where('id_ortu', $ortu->id_ortu)
 			->order_by('id_anak', 'ASC')
 			->get('anak')
 			->result();
-
 
 		// ==========================================
 		// BANGUN POHON
@@ -1141,6 +1159,183 @@ class Api extends CI_Controller
 				'id_ortu' => $ortu->id_ortu,
 				'nama_ortu' => $ortu->nama_ortu,
 				'data' => $galery
+			]));
+	}
+
+	public function silsilah_anak()
+	{
+		if (!$this->cek_api_key()) {
+			return;
+		}
+
+		$username = $this->input->get('username', TRUE);
+		$id_anak  = $this->input->get('id_anak', TRUE);
+
+		// ==========================================
+		// CEK USERNAME
+		// ==========================================
+
+		if (empty($username)) {
+			return $this->output
+				->set_status_header(400)
+				->set_content_type('application/json')
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Username wajib diisi'
+				]));
+		}
+
+		// ==========================================
+		// CEK ID ANAK
+		// ==========================================
+
+		if (empty($id_anak)) {
+			return $this->output
+				->set_status_header(400)
+				->set_content_type('application/json')
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'ID Anak wajib diisi'
+				]));
+		}
+
+		// ==========================================
+		// DATA ORTU
+		// ==========================================
+
+		$ortu = $this->db
+			->where('username', $username)
+			->where('aktif', 1)
+			->get('ortu')
+			->row();
+
+		if (!$ortu) {
+			return $this->output
+				->set_status_header(404)
+				->set_content_type('application/json')
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Data user tidak ditemukan'
+				]));
+		}
+
+		// ==========================================
+		// AMBIL ANAK
+		// HANYA MILIK ORTU YANG LOGIN
+		// ==========================================
+
+		$anak = $this->db
+			->where('id_anak', $id_anak)
+			->where('id_ortu', $ortu->id_ortu)
+			->get('anak')
+			->row();
+
+		if (!$anak) {
+			return $this->output
+				->set_status_header(404)
+				->set_content_type('application/json')
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Data anak tidak ditemukan'
+				]));
+		}
+
+		// ==========================================
+		// AMBIL CUCU
+		// ==========================================
+
+		$cucu = $this->db
+			->where('id_anak', $anak->id_anak)
+			->order_by('id_cucu', 'ASC')
+			->get('cucu')
+			->result();
+
+		$data_cucu = [];
+
+		foreach ($cucu as $c) {
+
+			// ======================================
+			// AMBIL CICIT
+			// ======================================
+
+			$cicit = $this->db
+				->where('id_cucu', $c->id_cucu)
+				->order_by('id_cicit', 'ASC')
+				->get('cicit')
+				->result();
+
+			$data_cicit = [];
+
+			foreach ($cicit as $ci) {
+
+				// ==================================
+				// AMBIL BAOK
+				// ==================================
+
+				$baok = $this->db
+					->where('id_cicit', $ci->id_cicit)
+					->order_by('id_baok', 'ASC')
+					->get('baok')
+					->result();
+
+				$data_baok = [];
+
+				foreach ($baok as $b) {
+					$data_baok[] = $b;
+				}
+
+				// ==================================
+				// CICIT + BAOK
+				// ==================================
+
+				$ci->baok = $data_baok;
+
+				$data_cicit[] = $ci;
+			}
+
+			// ======================================
+			// CUCU + CICIT
+			// ======================================
+
+			$c->cicit = $data_cicit;
+
+			$data_cucu[] = $c;
+		}
+
+		// ==========================================
+		// ANAK + CUCU
+		// ==========================================
+
+		$anak->cucu = $data_cucu;
+
+		// ==========================================
+		// RESPONSE
+		// ==========================================
+
+		return $this->output
+			->set_status_header(200)
+			->set_content_type('application/json')
+			->set_output(json_encode([
+
+				'status' => true,
+
+				'message' => 'Data silsilah anak berhasil diambil',
+
+				'data' => [
+
+					// ORANG TUA
+					'ortu' => [
+						'id_ortu' => $ortu->id_ortu,
+						'nama_ortu' => $ortu->nama_ortu,
+						'jenis_kelamin_ortu' => $ortu->jenis_kelamin_ortu,
+						'foto_ortu' => $ortu->foto_ortu
+					],
+
+					// SATU ANAK
+					'anak' => $anak
+
+				]
+
 			]));
 	}
 }

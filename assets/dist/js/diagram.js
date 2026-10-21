@@ -1,63 +1,49 @@
 function rapikanGarisTree() {
+	document
+		.querySelectorAll(".family-tree .children")
+		.forEach(function (children) {
+			const nodes = children.querySelectorAll(":scope > .node");
 
-    document.querySelectorAll('.family-tree .children').forEach(function(children) {
+			if (nodes.length === 0) {
+				return;
+			}
 
-        const nodes = children.querySelectorAll(':scope > .node');
+			// Hapus garis lama
+			const oldLine = children.querySelector(":scope > .family-line");
 
-        if (nodes.length === 0) {
-            return;
-        }
+			if (oldLine) {
+				oldLine.remove();
+			}
 
-        // Hapus garis lama
-        const oldLine = children.querySelector(':scope > .family-line');
+			const first = nodes[0];
+			const last = nodes[nodes.length - 1];
 
-        if (oldLine) {
-            oldLine.remove();
-        }
+			const firstRect = first.getBoundingClientRect();
+			const lastRect = last.getBoundingClientRect();
 
-        const first = nodes[0];
-        const last = nodes[nodes.length - 1];
+			const parentRect = children.getBoundingClientRect();
 
-        const firstRect = first.getBoundingClientRect();
-        const lastRect = last.getBoundingClientRect();
+			// Tengah anak pertama
+			const start = firstRect.left + firstRect.width / 2 - parentRect.left;
 
-        const parentRect = children.getBoundingClientRect();
+			// Tengah anak terakhir
+			const end = lastRect.left + lastRect.width / 2 - parentRect.left;
 
-        // Tengah anak pertama
-        const start =
-            firstRect.left +
-            (firstRect.width / 2) -
-            parentRect.left;
-
-        // Tengah anak terakhir
-        const end =
-            lastRect.left +
-            (lastRect.width / 2) -
-            parentRect.left;
-
-        // Buat garis
-        const line = document.createElement('div');
-
-        line.className = 'family-line';
-
-        line.style.left = start + 'px';
-
-        line.style.width =
-            (end - start) + 'px';
-
-        children.appendChild(line);
-    });
+			// Buat garis
+			const line = document.createElement("div");
+			line.className = "family-line";
+			line.style.left = start + "px";
+			line.style.width = end - start + "px";
+			children.appendChild(line);
+		});
 }
 
-
 /* Saat halaman selesai */
-window.addEventListener('load', function() {
-    setTimeout(rapikanGarisTree, 100);
+window.addEventListener("load", function () {
+	setTimeout(rapikanGarisTree, 100);
 });
-
 
 /* Saat browser di-resize */
-window.addEventListener('resize', function() {
-    rapikanGarisTree();
+window.addEventListener("resize", function () {
+	rapikanGarisTree();
 });
-

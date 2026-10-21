@@ -1,21 +1,46 @@
 <?php
 defined('BASEPATH') or exit('No direct script access allowed');
 
+use Endroid\QrCode\Builder\Builder;
+use Endroid\QrCode\Writer\SvgWriter;
+
 class Dashboard1 extends CI_Controller
 {
 	private $api = 'https://www.emsifa.com/api-wilayah-indonesia/api/';
 
-	function __construct()
+	public function __construct()
 	{
 		parent::__construct();
+
+		// Load library, helper dan model terlebih dahulu
+		$this->load->library('session');
+		$this->load->helper(array('form', 'url'));
+		$this->load->library('form_validation');
+
 		$this->load->model('m_anak1');
 		$this->load->model('m_login');
-		$this->load->library('session');
-		$this->load->helper(array('form', 'url',));
-		$this->load->library('form_validation');
-		if ($this->session->userdata('status') != "login") {
-			$this->session->set_flashdata('flash_gagal', 'Login');
-			redirect(base_url("login"));
+
+		// Ambil nama method yang sedang dijalankan
+		$method = $this->router->fetch_method();
+
+		// Method yang boleh diakses tanpa login
+		$public_methods = ['scan_anak',	'qr_anak'];
+
+		// CEK LOGIN UNTUK METHOD PRIVATE
+		if (!in_array($method, $public_methods)) {
+
+			if (
+				!$this->session->userdata('nama') || $this->session->userdata('status') != "login"
+			) {
+
+				$this->session->set_flashdata(
+					'flash_gagal',
+					'Login'
+				);
+
+				redirect(base_url("login"));
+				return;
+			}
 		}
 	}
 
@@ -759,6 +784,7 @@ class Dashboard1 extends CI_Controller
 	{
 		$where = array('id_ortu' => $id_ortu);
 		$data['anak'] = $this->m_anak1->form_simpan_data_anak($where, 'ortu')->result();
+
 		$this->load->view('templateLTE1/header');
 		$this->load->view('madnasir1/master data/v_input_anak', $data);
 		$this->load->view('templateLTE1/footer');
@@ -3614,5 +3640,718 @@ class Dashboard1 extends CI_Controller
 		$this->load->helper('download');
 
 		force_download($filename, file_get_contents($filepath));
+	}
+
+	public function scan_anak($token)
+	{
+		if (empty($token)) {
+			show_404();
+			return;
+		}
+
+		$this->load->database();
+
+		$anak = $this->db
+			->where('qr_token', $token)
+			->get('anak')
+			->row();
+
+		if (!$anak) {
+			show_404();
+			return;
+		}
+
+		// Kalau belum login → tampilkan profil publik
+		if (!$this->session->userdata('nama')) {
+
+			$data['anak'] = $anak;
+
+			// Simpan URL untuk kembali setelah login
+			$this->session->set_userdata(
+				'redirect_after_login',
+				current_url()
+			);
+
+			$this->load->view(
+				'madnasir1/master data/profile_anak_public',
+				$data
+			);
+
+			return;
+		}
+
+		// Kalau sudah login → langsung profil lengkap
+		redirect(
+			'Dashboard1/view_profile_anak/' . $anak->id_anak
+		);
+	}
+
+	public function qr_anak($id)
+	{
+		$this->load->database();
+
+		$anak = $this->db
+			->where('id_anak', $id)
+			->get('anak')
+			->row();
+
+		if (!$anak) {
+			show_404();
+			return;
+		}
+
+		if (empty($anak->qr_token)) {
+
+			$token = bin2hex(random_bytes(16));
+
+			$this->db
+				->where('id_anak', $id)
+				->update('anak', [
+					'qr_token' => $token
+				]);
+
+			$anak->qr_token = $token;
+		}
+
+		$url = base_url(
+			'Dashboard1/scan_anak/' . $anak->qr_token
+		);
+
+		$builder = new Builder(
+			writer: new SvgWriter(),
+			data: $url,
+			size: 500,
+			margin: 10
+		);
+
+		$result = $builder->build();
+
+		header('Content-Type: image/svg+xml');
+
+		echo $result->getString();
+	}
+
+	// Quick Insert
+	public function nested_form()
+	{
+		$username = $this->session->userdata('nama');
+
+		if (!($username)) {
+			redirect('login');
+			return;
+		}
+
+		$ortu = $this->db
+			->where('username', $username)
+			->get('ortu')
+			->row();
+
+		if (!$ortu) {
+			show_error('Data Ortu Tidak Ditemukan');
+			return;
+		}
+
+		$data['anak'] = $this->db
+			->where('id_ortu', $ortu->id_ortu)
+			->order_by('nama', 'ASC')
+			->get('anak')
+			->result();
+
+		$data['title'] = 'Tambah Data Keluarga';
+
+		$this->load->view('templateLTE1/header');
+		$this->load->view('madnasir1/master data/nested_form', $data);
+		$this->load->view('templateLTE1/footer');
+	}
+
+	public function nested_form_simpan()
+	{
+		$anak = $this->input->post('anak');
+
+		if (empty($anak)) {
+			$this->session->set_flashdata('error',	'Data anak belum diisi.');
+
+			redirect('dashboard1/nested_form');
+			return;
+		}
+
+		// =========================================
+		// CARI DATA ORTU YANG SEDANG LOGIN
+		// =========================================
+
+		$username = $this->session->userdata('nama');
+
+		$ortu = $this->db
+			->where('username', $username)
+			->get('ortu')
+			->row();
+
+		if (!$ortu) {
+
+			$this->session->set_flashdata(
+				'error',
+				'Data orang tua tidak ditemukan.'
+			);
+
+			redirect('dashboard1/nested_form');
+			return;
+		}
+
+		$id_ortu = $ortu->id_ortu;
+
+		// =========================================
+		// MULAI TRANSAKSI
+		// =========================================
+
+		$this->db->trans_start();
+
+
+		foreach ($anak as $data_anak) {
+
+			// =====================================
+			// SIMPAN ANAK
+			// =====================================
+
+			$this->db->insert('anak', [
+
+				'id_ortu' => $id_ortu,
+
+				'nama' => $data_anak['nama'] ?? '',
+
+				'menantu' => $data_anak['menantu'] ?? ''
+
+			]);
+
+			$id_anak = $this->db->insert_id();
+
+
+			// =====================================
+			// SIMPAN CUCU
+			// =====================================
+
+			if (!empty($data_anak['cucu'])) {
+
+				foreach ($data_anak['cucu'] as $data_cucu) {
+
+					$this->db->insert('cucu', [
+
+						'id_anak' => $id_anak,
+
+						'nama_cucu' =>
+						$data_cucu['nama'] ?? '',
+
+						'menantu_cucu' =>
+						$data_cucu['menantu'] ?? ''
+
+					]);
+
+					$id_cucu = $this->db->insert_id();
+
+					// =================================
+					// SIMPAN CICIT
+					// =================================
+
+					if (!empty($data_cucu['cicit'])) {
+
+						foreach (
+							$data_cucu['cicit']
+							as $data_cicit
+						) {
+
+							$this->db->insert('cicit', [
+								'id_cucu' => $id_cucu,
+								'nama_cicit' =>
+								$data_cicit['nama'] ?? ''
+
+							]);
+
+							$id_cicit =	$this->db->insert_id();
+
+							// =============================
+							// SIMPAN BAOK
+							// =============================
+
+							if (!empty($data_cicit['baok'])) {
+
+								foreach (
+									$data_cicit['baok']
+									as $data_baok
+								) {
+
+									$this->db->insert('baok', [
+
+										'id_cicit' => $id_cicit,
+
+										'nama_baok' =>
+										$data_baok['nama'] ?? ''
+
+									]);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// =========================================
+		// SELESAIKAN TRANSAKSI
+		// =========================================
+
+		$this->db->trans_complete();
+
+		if ($this->db->trans_status() === false) {
+
+			$this->session->set_flashdata(
+				'error',
+				'Data gagal disimpan.'
+			);
+		} else {
+
+			$this->session->set_flashdata(
+				'success',
+				'Data keluarga berhasil disimpan.'
+			);
+		}
+
+		redirect('dashboard1/nested_form');
+	}
+
+	public function get_cucu($id_anak)
+	{
+		if (!$this->session->userdata('nama')) {
+			return $this->output
+				->set_status_header(401)
+				->set_content_type('application/json')
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Belum login'
+				]));
+		}
+
+
+		$username = $this->session->userdata('nama');
+
+
+		// Pastikan Anak tersebut milik user yang sedang login
+		$anak = $this->db
+			->select('anak.id_anak')
+			->from('anak')
+			->join(
+				'ortu',
+				'ortu.id_ortu = anak.id_ortu'
+			)
+			->where('anak.id_anak', $id_anak)
+			->where('ortu.username', $username)
+			->get()
+			->row();
+
+
+		if (!$anak) {
+
+			return $this->output
+				->set_status_header(404)
+				->set_content_type('application/json')
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Data Anak tidak ditemukan'
+				]));
+		}
+
+
+		/*
+     * Ambil Cucu berdasarkan id_anak
+     *
+     * Sesuaikan nama kolom jika struktur
+     * tabel Anda berbeda.
+     */
+
+		$cucu = $this->db
+			->where('id_anak', $id_anak)
+			->order_by('id_cucu', 'ASC')
+			->get('cucu')
+			->result();
+
+
+		return $this->output
+			->set_content_type('application/json')
+			->set_output(
+				json_encode($cucu)
+			);
+	}
+
+	public function get_cicit($id_cucu)
+	{
+		if (!$this->session->userdata('nama')) {
+			return $this->output
+				->set_status_header(401)
+				->set_content_type('application/json')
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Belum login'
+				]));
+		}
+
+
+		$username = $this->session->userdata('nama');
+
+
+		/*
+     * Pastikan Cucu tersebut berada
+     * di keluarga user yang sedang login.
+     */
+
+		$cucu = $this->db
+			->select('
+            cucu.id_cucu,
+            cucu.id_anak
+        ')
+			->from('cucu')
+			->join(
+				'anak',
+				'anak.id_anak = cucu.id_anak'
+			)
+			->join(
+				'ortu',
+				'ortu.id_ortu = anak.id_ortu'
+			)
+			->where('cucu.id_cucu', $id_cucu)
+			->where('ortu.username', $username)
+			->get()
+			->row();
+
+
+		if (!$cucu) {
+
+			return $this->output
+				->set_status_header(404)
+				->set_content_type('application/json')
+				->set_output(json_encode([
+					'status' => false,
+					'message' => 'Data Cucu tidak ditemukan'
+				]));
+		}
+
+
+		$data = $this->db
+			->where('id_cucu', $id_cucu)
+			->order_by('id_cicit', 'ASC')
+			->get('cicit')
+			->result();
+
+
+		return $this->output
+			->set_content_type('application/json')
+			->set_output(
+				json_encode($data)
+			);
+	}
+
+	public function nested_form_susulan()
+	{
+		if (!$this->session->userdata('nama')) {
+			redirect('login');
+		}
+
+
+		$username = $this->session->userdata('nama');
+
+
+		/*
+     * Cari ortu berdasarkan user login
+     */
+
+		$ortu = $this->db
+			->where('username', $username)
+			->get('ortu')
+			->row();
+
+
+		if (!$ortu) {
+			show_error(
+				'Data orang tua tidak ditemukan.'
+			);
+		}
+
+
+		$jenis =
+			$this->input->post(
+				'jenis_susulan',
+				true
+			);
+
+
+		/*
+     * =====================================================
+     * TAMBAH CUCU
+     * =====================================================
+     */
+
+		if ($jenis === 'cucu') {
+
+			$id_anak =
+				$this->input->post(
+					'id_anak',
+					true
+				);
+
+
+			$nama =
+				$this->input->post(
+					'nama_cucu',
+					true
+				);
+
+
+			$menantu =
+				$this->input->post(
+					'menantu_cucu',
+					true
+				);
+
+
+			if (!$id_anak || !$nama) {
+
+				$this->session->set_flashdata(
+					'error',
+					'Data Anak dan nama Cucu harus diisi.'
+				);
+
+				redirect(
+					'dashboard1/nested_form'
+				);
+
+				return;
+			}
+
+
+			/*
+         * Pastikan Anak milik user yang login
+         */
+
+			$anak = $this->db
+				->where('id_anak', $id_anak)
+				->where('id_ortu', $ortu->id_ortu)
+				->get('anak')
+				->row();
+
+
+			if (!$anak) {
+
+				$this->session->set_flashdata(
+					'error',
+					'Anak tidak ditemukan.'
+				);
+
+				redirect('dashboard1/nested_form');
+
+				return;
+			}
+
+			$insert = [
+				'id_anak' => $id_anak,
+				'nama_cucu' => $nama,
+				'menantu_cucu' => $menantu
+			];
+
+			$this->db->insert('cucu', $insert);
+
+			if ($this->db->affected_rows() > 0) {
+
+				$this->session->set_flashdata(
+					'success',
+					'Data Cucu berhasil ditambahkan.'
+				);
+			} else {
+
+				$this->session->set_flashdata(
+					'error',
+					'Data Cucu gagal ditambahkan.'
+				);
+			}
+
+			redirect('dashboard1/nested_form');
+			return;
+		}
+
+		//  TAMBAH CICIT
+		if ($jenis === 'cicit') {
+			$id_cucu = $this->input->post('id_cucu', true);
+			$nama =	$this->input->post('nama_cicit', true);
+
+			if (!$id_cucu || !$nama) {
+				$this->session->set_flashdata(
+					'error',
+					'Data Cucu dan nama Cicit harus diisi.'
+				);
+				redirect('dashboard1/nested_form');
+				return;
+			}
+
+			$valid = $this->db
+				->select('cucu.id_cucu')
+				->from('cucu')
+				->join(
+					'anak',
+					'anak.id_anak = cucu.id_anak'
+				)
+				->where(
+					'cucu.id_cucu',
+					$id_cucu
+				)
+				->where(
+					'anak.id_ortu',
+					$ortu->id_ortu
+				)
+				->get()
+				->row();
+
+
+			if (!$valid) {
+
+				$this->session->set_flashdata(
+					'error',
+					'Data Cucu tidak ditemukan.'
+				);
+
+				redirect(
+					'dashboard1/nested_form'
+				);
+
+				return;
+			}
+
+
+			$insert = [
+				'id_cucu' => $id_cucu,
+				'nama_cicit' => $nama
+			];
+
+
+			$this->db->insert(
+				'cicit',
+				$insert
+			);
+
+
+			if ($this->db->affected_rows() > 0) {
+
+				$this->session->set_flashdata(
+					'success',
+					'Data Cicit berhasil ditambahkan.'
+				);
+			} else {
+
+				$this->session->set_flashdata(
+					'error',
+					'Data Cicit gagal ditambahkan.'
+				);
+			}
+
+
+			redirect(
+				'dashboard1/nested_form'
+			);
+
+			return;
+		}
+
+
+
+		/*
+     * =====================================================
+     * TAMBAH BAOK
+     * =====================================================
+     */
+
+		if ($jenis === 'baok') {
+
+			$id_cicit =
+				$this->input->post(
+					'id_cicit',
+					true
+				);
+
+
+			$nama =
+				$this->input->post(
+					'nama_baok',
+					true
+				);
+
+
+			if (!$id_cicit || !$nama) {
+
+				$this->session->set_flashdata(
+					'error',
+					'Data Cicit dan nama Baok harus diisi.'
+				);
+
+				redirect(
+					'dashboard1/nested_form'
+				);
+
+				return;
+			}
+
+			$valid = $this->db
+				->select('cicit.id_cicit')
+				->from('cicit')
+				->join(
+					'cucu',
+					'cucu.id_cucu = cicit.id_cucu'
+				)
+				->join(
+					'anak',
+					'anak.id_anak = cucu.id_anak'
+				)
+				->where(
+					'cicit.id_cicit',
+					$id_cicit
+				)
+				->where(
+					'anak.id_ortu',
+					$ortu->id_ortu
+				)
+				->get()
+				->row();
+
+			if (!$valid) {
+
+				$this->session->set_flashdata(
+					'error',
+					'Data Cicit tidak ditemukan.'
+				);
+
+				redirect('dashboard1/nested_form');
+				return;
+			}
+
+			$insert = [
+				'id_cicit' => $id_cicit,
+				'nama_baok' => $nama
+			];
+
+			$this->db->insert('baok', $insert);
+			if ($this->db->affected_rows() > 0) {
+
+				$this->session->set_flashdata(
+					'success',
+					'Data Baok berhasil ditambahkan.'
+				);
+			} else {
+
+				$this->session->set_flashdata(
+					'error',
+					'Data Baok gagal ditambahkan.'
+				);
+			}
+
+			redirect('dashboard1/nested_form');
+			return;
+		}
+
+		$this->session->set_flashdata('error', 'Jenis data susulan tidak valid.');
+		redirect('dashboard1/nested_form');
 	}
 }

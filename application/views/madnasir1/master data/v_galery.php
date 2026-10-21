@@ -8,7 +8,7 @@
 		<nav aria-label="breadcrumb">
 			<ol class="breadcrumb">
 				<li class="breadcrumb-item"><a href="<?php echo base_url('dashboard1/tampil_galery'); ?>">Home</a></li>
-				<li class="breadcrumb-item active" aria-current="page"><a href="<?php echo base_url('dashboard1/galery'); ?>">Input Gallery</a></li>
+				<li class="breadcrumb-item active" aria-current="page"><a href="<?php echo base_url('dashboard1/galery'); ?>">Upload Gallery</a></li>
 				<li class="breadcrumb-item active" aria-current="page">Foto Kegiatan</a></li>
 			</ol>
 

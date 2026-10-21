@@ -60,12 +60,21 @@
  						</a>
 
  						<ul class="nav nav-treeview">
+
+ 							<li class="nav-item">
+ 								<a href="<?= base_url('dashboard1/nested_form') ?>" class="nav-link active">
+ 									<i class="fas fa-user-plus nav-icon"></i>
+ 									<p>Quick Input</p>
+ 								</a>
+ 							</li>
+
  							<li class="nav-item">
  								<a href="<?= site_url('dashboard1/tampil_data_orangtua') ?>" class="nav-link active">
  									<i class="fas fa-user-plus nav-icon"></i>
  									<p>Input Data Anak</p>
  								</a>
  							</li>
+
  							<li class="nav-item">
  								<a href="<?= site_url('dashboard1/tampil_data_anak') ?>" class="nav-link">
  									<i class="fas fa-user-plus nav-icon"></i>
@@ -87,8 +96,8 @@
 
  							<li class="nav-item">
  								<a href="<?= site_url('dashboard1/galery') ?>" class="nav-link">
- 									<i class="fas fa-user-plus nav-icon"></i>
- 									<p>Input Galery</p>
+ 									<i class="fas fa-upload nav-icon"></i>
+ 									<p>Upload Foto</p>
  								</a>
  							</li>
 

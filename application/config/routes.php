@@ -50,6 +50,11 @@ defined('BASEPATH') or exit('No direct script access allowed');
 |		my-controller/my-method	-> my_controller/my_method
 */
 $route['default_controller'] = 'login';
+$route['dashboard1/nested_form'] = 'Dashboard1/nested_form';
+$route['dashboard1/nested_form/simpan'] = 'Dashboard1/nested_form_simpan';
+$route['dashboard1/nested_form_susulan'] = 'Dashboard1/nested_form_susulan';
+$route['dashboard1/get_cucu/(:num)'] = 'Dashboard1/get_cucu/$1';
+$route['dashboard1/get_cicit/(:num)'] =	'Dashboard1/get_cicit/$1';
 $route['backup/download'] = 'dashboard1/download_backup';
 $route['backup/hapus'] = 'dashboard1/hapus_backup';
 $route['404_override'] = '';

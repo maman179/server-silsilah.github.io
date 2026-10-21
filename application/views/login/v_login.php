@@ -46,13 +46,10 @@
 
 				<!-- Flash Data -->
 
-				<div
-					class="flash-data-registrasi"
-					data-flashdata="<?= $this->session->flashdata('flash'); ?>">
+				<div class="flash-data-registrasi" data-flashdata="<?= $this->session->flashdata('flash'); ?>">
 				</div>
 
-				<div
-					class="flash-data-gagalreg"
+				<div class="flash-data-gagalreg"
 					data-flashdata="<?= $this->session->flashdata('flash_gagal1'); ?>">
 				</div>
 
@@ -120,41 +117,27 @@
 
 					<div class="d-grid">
 
-						<button
-							type="submit"
-							class="btn btn-login">
-
-							<!-- <i class="fa fa-sign-in"></i> -->
-
+						<button type="submit" class="btn btn-login">
 							&nbsp; LOGIN
-
 						</button>
-
 					</div>
-
 				</form>
 
 
 				<!-- LINKS -->
 
 				<div class="login-links">
-
 					<a href="<?= base_url('login/registrasi'); ?>">
-
 						<i class="fa fa-user-plus"></i>
 						Buat Akun
-
 					</a>
 
 					<a href="<?= base_url('login/tampilEmail'); ?>">
 
 						Lupa Password
 						<i class="fa fa-angle-right"></i>
-
 					</a>
-
 				</div>
-
 			</div>
 
 
@@ -189,38 +172,7 @@
 	</script>
 
 	<!-- SweetAlert -->
-	<script>
-		<?php if ($this->session->flashdata('flash')) : ?>
-			Swal.fire({
-				icon: 'success',
-				title: 'Berhasil',
-				text: '<?= $this->session->flashdata('flash'); ?>',
-				confirmButtonText: 'OK',
-				confirmButtonColor: '#0d6efd'
-			});
-		<?php endif; ?>
-		<?php if ($this->session->flashdata('flash_gagal1')) : ?>
-			Swal.fire({
-				icon: 'error',
-				title: 'Gagal',
-				text: '<?= $this->session->flashdata('flash_gagal1'); ?>',
-				confirmButtonText: 'OK',
-				confirmButtonColor: '#dc3545'
-			});
-
-		<?php endif; ?>
-
-		<?php if ($this->session->flashdata('flash_gagal')) : ?>
-			Swal.fire({
-				icon: 'error',
-				title: 'Login Gagal',
-				text: '<?= $this->session->flashdata('flash_gagal'); ?>',
-				confirmButtonText: 'Coba Lagi',
-				confirmButtonColor: '#dc3545'
-			});
-
-		<?php endif; ?>
-	</script>
+	<script type="text/javascript" src="<?= base_url('assets/js/script.js'); ?>"></script>
 
 </body>
 

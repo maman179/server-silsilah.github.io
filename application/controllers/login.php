@@ -14,7 +14,7 @@ class Login extends CI_Controller
 	{
 
 		$this->load->view('login/v_login');
-		// $this->load->view('templateLTE1/footer');	
+		// $this->load->view('templateLTE1/footer');
 	}
 
 	function aksi_login()
@@ -36,11 +36,11 @@ class Login extends CI_Controller
 						redirect(base_url("Dashboard1"));
 					} else {
 						$this->session->set_flashdata('flash_gagal', ' kosong');
-						redirect(base_url("Login"));
+						redirect(base_url("login"));
 					}
 				} else {
 					$this->session->set_flashdata('flash_gagal1', 'Aktivasi dahulu');
-					redirect(base_url("Login"));
+					redirect(base_url("login"));
 				}
 			}
 		}

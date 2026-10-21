@@ -1,3 +1,5 @@
+<link rel="stylesheet" href="<?php echo base_url('assets/dist/css/qr.css') ?>">
+
 <body>
 	<div class="flash-data" data-flashdata="<?= $this->session->flashdata('flash'); ?>"></div>
 	<?php if ($this->session->flashdata('flash')) : ?>
@@ -21,15 +23,10 @@
 
 					<div class="col-md-4 mb-3">
 
-						<!-- ========================= -->
 						<!-- CARD PROFILE -->
-						<!-- ========================= -->
 						<div class="card">
-
 							<div class="card-body">
-
 								<div class="d-flex flex-column align-items-center text-center">
-
 									<input type="hidden"
 										name="id_anak"
 										value="<?= $u->id_anak; ?>">
@@ -40,7 +37,6 @@
 										onclick="myFunction(this);">
 
 									<div class="mt-4">
-
 										<h4>
 											<b><?= $u->nama; ?></b>
 										</h4>
@@ -54,9 +50,7 @@
 											<button type="button"
 												class="btn btn-outline-success dropdown-toggle"
 												data-toggle="dropdown">
-
 												Pilih Menu
-
 											</button>
 
 											<div class="dropdown-menu">
@@ -209,11 +203,20 @@
 								<div class="row">
 									<div class="col-sm-5">
 										<b>
-											<h6 class="mb-0">ALAMAT LENGKAP
+											<h6 class="mb-0">SCAN BARCODE
 										</b></h6>
 									</div>
 									<div class="col-sm-7 text-secondary">
-										<?= $u->alamat; ?>
+										<!-- <a href="<?php echo base_url('dashboard1/qr_anak/' . $u->id_anak); ?>"
+											target="_blank" class="btn btn-sm btn-success">
+											<i class="fas fa fa-qrcode"></i>
+											Barcode
+										</a> -->
+
+										<button type="button" class="btn-qr btn-primary"
+											onclick="showQrAnak(<?= (int) $u->id_anak ?>)">
+											<i class="fas fa fa-qrcode"></i> Tampilkan
+										</button>
 									</div>
 								</div>
 
@@ -227,6 +230,7 @@
 									<div class="col-sm-7 text-secondary">
 										<?php if (!empty($u->latitude) && !empty($u->longitude)) : ?>
 											<div class="d-flex flex-wrap" style="gap: 5px;">
+
 												<!-- LIHAT MAPS -->
 												<a href="https://www.google.com/maps?q=<?= $u->latitude; ?>,<?= $u->longitude; ?>"
 													target="_blank"
@@ -286,24 +290,81 @@
 <?php
 			} ?>
 
+
+<!-- MODAL QR ANAK -->
+<div id="qrModal" class="qr-modal">
+	<div class="qr-modal-box">
+
+		<!-- CLOSE -->
+		<button
+			type="button"
+			class="qr-modal-close"
+			onclick="closeQrModal()">
+			&times;
+		</button>
+
+		<!-- JUDUL -->
+		<h3 class="qr-modal-title">
+			QR CODE
+		</h3>
+
+		<!-- ID -->
+		<div id="qrIdAnak" class="qr-modal-id"></div>
+
+		<!-- QR -->
+		<img
+			id="qrImage"
+			class="qr-modal-image"
+			src=""
+			alt="QR Code">
+
+	</div>
+
+</div>
+</div>
+</div>
+
+<script>
+	function showQrAnak(idAnak) {
+		// Tampilkan ID
+
+		document.getElementById('qrIdAnak').innerHTML =
+			'ID Anak: ' + idAnak;
+
+		// URL QR dari controller CI3
+		document.getElementById('qrImage').src =
+			'<?= site_url('Dashboard1/qr_anak/'); ?>' + idAnak;
+
+		// Tampilkan modal
+		document.getElementById('qrModal').style.display = 'flex';
+	}
+
+
+	function closeQrModal() {
+		document.getElementById('qrModal').style.display = 'none';
+
+		// Bersihkan QR
+		document.getElementById('qrImage').src = '';
+	}
+
+	// Klik background untuk menutup
+	document.getElementById('qrModal').addEventListener('click', function(e) {
+		if (e.target === this) {
+			closeQrModal();
+		}
+	});
+</script>
+
+
 <script>
 	document.addEventListener("DOMContentLoaded", function() {
-
 		const tombolBagikan = document.querySelectorAll(".btnBagikanLokasi");
-
 		tombolBagikan.forEach(function(button) {
-
 			button.addEventListener("click", async function() {
 
-				const latitude =
-					this.dataset.lat;
-
-				const longitude =
-					this.dataset.lng;
-
-				const nama =
-					this.dataset.nama;
-
+				const latitude = this.dataset.lat;
+				const longitude = this.dataset.lng;
+				const nama = this.dataset.nama;
 
 				if (!latitude || !longitude) {
 
@@ -312,74 +373,46 @@
 
 				}
 
-
 				// LINK GOOGLE MAPS
-				const link =
-					"https://www.google.com/maps?q=" +
-					latitude +
-					"," +
-					longitude;
+				const link = "https://www.google.com/maps?q=" +
+					latitude + "," + longitude;
 
-
-				// ==========================================
 				// SHARE BAWAAN HP / BROWSER
-				// ==========================================
-
 				if (navigator.share) {
 
 					try {
-
 						await navigator.share({
-
 							title: "Lokasi " + nama,
-
 							text: "Lokasi rumah " + nama,
-
 							url: link
 
 						});
 
 					} catch (error) {
 
-						console.log(
-							"Share dibatalkan:",
-							error
-						);
-
+						console.log("Share dibatalkan:", error);
 					}
 
 					return;
 				}
 
-
-				// ==========================================
 				// BROWSER TIDAK MENDUKUNG SHARE
 				// COPY LINK
-				// ==========================================
-
 				try {
 
 					await navigator.clipboard.writeText(
 						link
 					);
 
-					alert(
-						"Link lokasi berhasil disalin."
-					);
+					alert("Link lokasi berhasil disalin.");
 
 				} catch (error) {
 
-					prompt(
-						"Salin link lokasi berikut:",
-						link
-					);
+					prompt("Salin link lokasi berikut:", link);
 
 				}
-
 			});
-
 		});
-
 	});
 
 	document.addEventListener("DOMContentLoaded", function() {
